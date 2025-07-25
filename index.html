@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>패턴 잠금 포트폴리오</title>
+        <style>
+            body {
+                margin: 0;
+                background: #121212;
+                color: white;
+                font-family: sans-serif;
+                overflow: hidden;
+            }
+            #pattern-lock {
+                display: grid;
+                grid-template-columns: repeat(3, 80px);
+                gap: 30px;
+                justify-content: center;
+                align-items: center;
+                height: 35vh;
+                position: relative;
+                z-index: 2;
+                background-color: #222;
+                width: 100%;
+                max-width: 600px;
+                margin: auto;
+            }
+            .dot {
+                width: 80px;
+                height: 80px;
+                border: 2px solid #888;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.1);
+                position: relative;
+                z-index: 2;
+            }
+            .dot.active {
+                background: #4fc3f7;
+                border-color: #4fc3f7;
+            }
+            canvas {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 1;
+            }
+            #portfolio {
+                display: none;
+                padding: 100px;
+                text-align: center;
+                font-size: 2rem;
+                animation: fadeIn 1s ease-in;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.95);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="lineCanvas"></canvas>
+        <div id="pattern-lock">
+            <div class="dot" data-id="1"></div>
+            <div class="dot" data-id="2"></div>
+            <div class="dot" data-id="3"></div>
+            <div class="dot" data-id="4"></div>
+            <div class="dot" data-id="5"></div>
+            <div class="dot" data-id="6"></div>
+            <div class="dot" data-id="7"></div>
+            <div class="dot" data-id="8"></div>
+            <div class="dot" data-id="9"></div>
+        </div>
+
+        <section id="portfolio">
+            <h1>어서오세요! 제 포트폴리오입니다 😄</h1>
+            <p>패턴을 맞추셨네요!</p>
+        </section>
+
+        <script>
+            const dots = document.querySelectorAll('.dot');
+            const canvas = document.getElementById('lineCanvas');
+            const ctx = canvas.getContext('2d');
+
+            let mouseDown = false;
+            let isStartedOnDot = false;
+            let pattern = [];
+            const correctPattern = ['1', '2', '3', '5', '7', '8', '9'];
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            function getDotCenter(dot) {
+                const rect = dot.getBoundingClientRect();
+                return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            }
+
+            function isNear(dot, x, y) {
+                const { x: cx, y: cy } = getDotCenter(dot);
+                const dist = Math.sqrt((cx - x) ** 2 + (cy - y) ** 2);
+                return dist < 40;
+            }
+
+            function drawLines() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (pattern.length < 2) return;
+                ctx.strokeStyle = '#4fc3f7';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                for (let i = 0; i < pattern.length; i++) {
+                    const dot = document.querySelector(`.dot[data-id="${pattern[i]}"]`);
+                    const { x, y } = getDotCenter(dot);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            function getTouchPos(e) {
+                const touch = e.touches[0] || e.changedTouches[0];
+                return { x: touch.clientX, y: touch.clientY };
+            }
+
+            function handleMove(x, y) {
+                dots.forEach((dot) => {
+                    const id = dot.dataset.id;
+                    if (!pattern.includes(id) && isNear(dot, x, y)) {
+                        pattern.push(id);
+                        dot.classList.add('active');
+                        drawLines();
+                    }
+                });
+            }
+
+            dots.forEach((dot) => {
+                dot.addEventListener('mousedown', () => {
+                    mouseDown = true;
+                    isStartedOnDot = true;
+                    pattern = [];
+                    dots.forEach((d) => d.classList.remove('active'));
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    const id = dot.dataset.id;
+                    pattern.push(id);
+                    dot.classList.add('active');
+                    drawLines();
+                });
+
+                dot.addEventListener(
+                    'touchstart',
+                    (e) => {
+                        e.preventDefault();
+                        mouseDown = true;
+                        isStartedOnDot = true;
+                        pattern = [];
+                        dots.forEach((d) => d.classList.remove('active'));
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                        const id = dot.dataset.id;
+                        pattern.push(id);
+                        dot.classList.add('active');
+                        drawLines();
+                    },
+                    { passive: false }
+                );
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!mouseDown) return;
+                handleMove(e.clientX, e.clientY);
+            });
+
+            document.addEventListener(
+                'touchmove',
+                (e) => {
+                    if (!mouseDown) return;
+                    e.preventDefault();
+                    const { x, y } = getTouchPos(e);
+                    handleMove(x, y);
+                },
+                { passive: false }
+            );
+
+            function handlePatternEnd() {
+                if (!isStartedOnDot) return;
+                mouseDown = false;
+                isStartedOnDot = false;
+                drawLines();
+
+                if (JSON.stringify(pattern) === JSON.stringify(correctPattern)) {
+                    document.getElementById('pattern-lock').style.display = 'none';
+                    canvas.style.display = 'none';
+                    document.getElementById('portfolio').style.display = 'block';
+                } else {
+                    alert('패턴이 틀렸습니다! 힌트 : Z ');
+                    pattern = [];
+                    dots.forEach((d) => d.classList.remove('active'));
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            document.addEventListener('mouseup', handlePatternEnd);
+            document.addEventListener(
+                'touchend',
+                (e) => {
+                    e.preventDefault();
+                    handlePatternEnd();
+                },
+                { passive: false }
+            );
+        </script>
+    </body>
+</html>
